@@ -128,9 +128,7 @@
     <Reference Include="System.Xml.Serialization" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="ServidorSoapBancolombia.svc" />
     <Content Include="ServidorSoapBCS_.svc" />
-    <Content Include="ServidorSoapDavivienda.svc" />
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
@@ -138,25 +136,12 @@
     <Compile Include="ConexionBD\queries_general.cs" />
     <Compile Include="ConexionBD\queries_base.cs" />
     <Compile Include="ConexionBD\Conexion.cs" />
-    <Compile Include="CServidorSoapBancolombia\DataContractBancolombia.cs" />
-    <Compile Include="CServidorSoapBancolombia\DataContractBancolombiaConsultaRecaudoNumero.cs" />
-    <Compile Include="CServidorSoapBancolombia\DataContractBancolombiaConsultaRecaudo.cs" />
-    <Compile Include="CServidorSoapBancolombia\DataContractBancolombiaRegistrarPagoIFX.cs" />
-    <Compile Include="CServidorSoapBancolombia\DataContractBancolombiaVerificarEstadoWebService.cs" />
-    <Compile Include="CServidorSoapBancolombia\FaultExceptionPdpBancolombia.cs" />
     <Compile Include="CServidorSoapBCS\ConstantesBCS.cs" />
     <Compile Include="CServidorSoapBCS\DataContractBCSNotificacion.cs" />
     <Compile Include="CServidorSoapBCS\DataContractBCSConsulta.cs" />
-    <Compile Include="CServidorSoapDavivienda\ConstantesDavivienda.cs" />
-    <Compile Include="CServidorSoapDavivienda\DataContractDaviviendaConsulta.cs" />
-    <Compile Include="CServidorSoapDavivienda\DataContractDaviviendaNotificacionRecaudo.cs" />
-    <Compile Include="CServidorSoapDavivienda\DataContractDaviviendaReversionNotificacionRecaudo.cs" />
-    <Compile Include="FServidorSoapBancolombia.cs" />
+    <Compile Include="CServidorSoapBCS\DataContractBCS.cs" />
     <Compile Include="FServidorSoapBCS.cs" />
-    <Compile Include="FServidorSoapDavivienda.cs" />
-    <Compile Include="IServidorSoapBancolombia.cs" />
     <Compile Include="IServidorSoapBCS_.cs" />
-    <Compile Include="IServidorSoapDavivienda.cs" />
     <Compile Include="Logs\LoggerCustom.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -165,14 +150,8 @@
     </Compile>
     <Compile Include="Schema\ClassSchemaCustom.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ServidorSoapBancolombia.svc.cs">
-      <DependentUpon>ServidorSoapBancolombia.svc</DependentUpon>
-    </Compile>
     <Compile Include="ServidorSoapBCS_.svc.cs">
       <DependentUpon>ServidorSoapBCS_.svc</DependentUpon>
-    </Compile>
-    <Compile Include="ServidorSoapDavivienda.svc.cs">
-      <DependentUpon>ServidorSoapDavivienda.svc</DependentUpon>
     </Compile>
     <Compile Include="templates_lib\handle_sqs_utils.cs" />
     <Compile Include="templates_lib\Utils.cs" />
