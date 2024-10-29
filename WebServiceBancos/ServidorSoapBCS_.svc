@@ -1,0 +1,1 @@
+﻿<%@ ServiceHost Language="C#" Debug="true" Service="WebServiceBancos.ServidorSoapBCS_" CodeBehind="ServidorSoapBCS_.svc.cs" %>
