@@ -59,7 +59,6 @@ namespace WebServiceBancos
             }
         }
 
-
         static private bool IsValidSecurity(string username_, string password_)
         {
             string username = Environment.ExpandEnvironmentVariables(ConfigurationManager.AppSettings.Get("USERNAME"));
@@ -127,22 +126,134 @@ namespace WebServiceBancos
             string application = "pdp";
 
             long referencia1 = -1;
-
             string id_comercio = content.Element("reference1")?.Value;
             if (Int64.TryParse(id_comercio, NumberStyles.Integer, CultureInfo.InvariantCulture, out referencia1))
             {
-                referencia1 = Convert.ToInt64(content.Element("reference1")?.Value);
+                referencia1 = Convert.ToInt64(id_comercio);
             }
 
-            /////////METER EL TRY CATCH LINEA 111 - 263
+            try
+            {
+                try
+                {
+                    queries_base query_helper = new queries_base();
+                    comercio = query_helper.ConsultarComercio(Convert.ToInt32(referencia1));
+                    result = comercio.Item1;
+                    application = comercio.Item2;
+                    if (result.Count != 0)
+                    {
+                        Dictionary<string, dynamic> resultado = result[0];
+                        if (resultado["id_usuario_suser"] != null)
+                        {
+                            int usuario = (int)resultado["id_usuario_suser"];
+                            id_usuario = Convert.ToString(usuario);
+                        }
+                        if (resultado["id_terminal"] != null)
+                        {
+                            int terminal = (int)resultado["id_terminal"];
+                            id_terminal = Convert.ToString(terminal);
+                        }
+                        if (resultado["nombre_usuario"] != null)
+                        {
+                            string nombre = (string)resultado["nombre_usuario"];
+                            nombre_usuario = nombre;
+                        }
+                    }
+                }
+                catch (ConexionBD.Conexion.NpgsqConnectionCustomException ex)
+                {
+                    error_user = ex.Message;
+                    throw new Exception($"NpgsqConnectionCustomException = {ex}", ex);
+                }
+                catch (NpgsqlException ex)
+                {
+                    throw new Exception($"NpgsqlException = {ex.Message}", ex);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Exception = {ex.Message}", ex);
+                }
+            }
+            catch (Exception excep)
+            {
+                error_msg = new Dictionary<string, dynamic>()
+                {
+                    { "name", error_name},
+                    { "blocking", true},
+                    { "context", $"Exception = {excep.Message}"},
+                    { "description", error_user },
+                    { "error_pdp", error_pdp },
+                };
+                Out_fallida.responseError = new DataConsultaRecaudoBCSResponseError();
+                Out_fallida.totalValue = 0;
+                Out_fallida.responseCode = "ER";
+                Out_fallida.responseError.errorCode = "00001";
+                Out_fallida.responseError.errorType = "GEN";
+                Out_fallida.responseError.errorDescription = $"{error_msg["error_pdp"]}";
+                Out_fallida.responseError.errorTechnicalDescription = $"{error_msg["description"]}, {error_msg["name"]}, {error_msg["context"]}, {error_msg["blocking"]}";
+                // Serializar el objeto a XML
+                string xmlStringFallida = SerializeObjectToXmlString(Out_fallida, typeof(DataContractConsultaRecaudoBCSResponse));
+                output.transactionXML.parametersXML = xmlStringFallida;
+            }
 
+            string id_trx = "0";
+            application = application.ToUpper();
+            res_flujo = new Dictionary<string, dynamic>()
+            {
+                { "application", application},
+                { "id_terminal", id_terminal},
+                { "id_usuario", id_usuario},
+                { "nombre_usuario", nombre_usuario},
+            };
+
+            // Secuencia generar id trx
+            //<<<<<<>>>>>>>>>>
+            error_user = "Error al llamar al servicio de trx";
+            error_pdp = "Error respuesta: Fallo al consumir servicio de transacciones [0010009]";
+            string type_trx_rec = Environment.ExpandEnvironmentVariables(ConfigurationManager.AppSettings.Get("TYPE_TRX_CONS_REC_EMP_" + application));
+            try
+            {
+                Dictionary<string, dynamic> body = new Dictionary<string, dynamic>()
+                    {
+                        {"status",false},
+                        {"codigo",500},
+                        {"msg","Caja social - consulta: Error consulta recaudo" },
+                        {"obj",new Dictionary<string,dynamic>(){
+                            {"Message",$"{Out_fallida.responseDescription}"},
+                            {"obj",(id_comercio != "") ? Convert.ToInt64(referencia1) : (long?)null}
+                        } }
+                    };
+                trx_service RealizarPeticion = new trx_service(OptionalLoggerCustom);
+                id_trx = RealizarPeticion.RealizarPeticionPost(body, Out_exitosa.totalValue, type_trx_rec, referencia1, id_terminal, id_usuario, nombre_usuario, application).GetAwaiter().GetResult();
+            }
+            catch (Exception excep)
+            {
+                error_msg = new Dictionary<string, dynamic>()
+                {
+                    { "name", error_name},
+                    { "blocking", true},
+                    { "context", $"Exception = {excep.Message}"},
+                    { "description", error_user },
+                    { "error_pdp", error_pdp },
+                };
+                Out_fallida.responseError = new DataConsultaRecaudoBCSResponseError();
+                Out_fallida.totalValue = 0;
+                Out_fallida.responseCode = "ER";
+                Out_fallida.responseError.errorCode = "00001";
+                Out_fallida.responseError.errorType = "GEN";
+                Out_fallida.responseError.errorDescription = $"{error_msg["error_pdp"]}";
+                Out_fallida.responseError.errorTechnicalDescription = $"{error_msg["description"]}, {error_msg["name"]}, {error_msg["context"]}, {error_msg["blocking"]}";
+                // Serializar el objeto a XML
+                string xmlStringFallida = SerializeObjectToXmlString(Out_fallida, typeof(DataContractConsultaRecaudoBCSResponse));
+                output.transactionXML.parametersXML = xmlStringFallida;
+                return Tuple.Create(output, error_msg, id_trx, res_flujo);
+            }
 
             //Secuencia Verificar los datos de entrada del soap
             //<<<<<<>>>>>>>>>>
             error_name = "error_input_data_service";
             error_user = "Error con los datos de entrada del servicio";
             error_pdp = "Error respuesta: (Error con los datos de entrada del servicio [consultaRecaudoBCS])";
-
             decimal totalValue = 0;
             //<<<<<<>>>>>>>>>>
             try
@@ -395,10 +506,9 @@ namespace WebServiceBancos
                 Out_fallida.responseError.errorType = "B2B";
                 Out_fallida.responseError.errorDescription = $"{error_msg["context"]}";
                 Out_fallida.totalValue = 0;
-                // Serializar el objeto a XML
                 string xmlStringFallida = SerializeObjectToXmlString(Out_fallida, typeof(DataContractConsultaRecaudoBCSResponse));
                 output.transactionXML.parametersXML = xmlStringFallida;
-                return Tuple.Create(output, error_msg, "1", res_flujo);
+                return Tuple.Create(output, error_msg, id_trx, res_flujo);
             }
             catch (Exception ex)
             {
@@ -417,18 +527,65 @@ namespace WebServiceBancos
                 Out_fallida.responseError.errorType = "GEN";
                 Out_fallida.responseError.errorDescription = $"{error_msg["error_pdp"]}";
                 Out_fallida.responseError.errorTechnicalDescription = $"{error_msg["description"]}, {error_msg["name"]}, {error_msg["context"]}, {error_msg["blocking"]}";
-                // Serializar el objeto a XML
-                string xmlStringFallida = SerializeObjectToXmlString(Out_exitosa, typeof(DataContractConsultaRecaudoBCSResponse));
+                string xmlStringFallida = SerializeObjectToXmlString(Out_fallida, typeof(DataContractConsultaRecaudoBCSResponse));
                 output.transactionXML.parametersXML = xmlStringFallida;
-                return Tuple.Create(output, error_msg, "1", res_flujo);
+                return Tuple.Create(output, error_msg, id_trx, res_flujo);
             }
 
-            // Serializar el objeto a XML
-            string xmlStringExitosa = SerializeObjectToXmlString(Out_exitosa, typeof(DataContractConsultaRecaudoBCSResponseExitosa));
-            output.transactionXML.parametersXML = xmlStringExitosa;
-            Console.WriteLine(xmlStringExitosa);
-
-            return Tuple.Create(output, error_msg, "1", res_flujo);
+            try
+            {
+                try
+                {
+                    if (result.Count == 0)
+                    {
+                        error_msg["context"] = "Comercio no existe";
+                        Out_fallida.responseError = new DataConsultaRecaudoBCSResponseError();
+                        Out_fallida.totalValue = 0;
+                        Out_fallida.responseCode = "ER";
+                        Out_fallida.responseError.errorType = "B2B";
+                        Out_fallida.responseError.errorCode = "00004";
+                        Out_fallida.responseError.errorDescription = "Factura no existe";
+                        string xmlStringFallida = SerializeObjectToXmlString(Out_fallida, typeof(DataContractConsultaRecaudoBCSResponse));
+                        output.transactionXML.parametersXML = xmlStringFallida;
+                        return Tuple.Create(output, error_msg, id_trx, res_flujo);
+                    }
+                    else
+                    {
+                        Out_exitosa.responseCode = "OK";
+                        Out_exitosa.responseDescription = "Operación Exitosa";
+                        Out_exitosa.totalValue = totalValue;
+                        // Serializar el objeto a XML
+                        string xmlStringExitosa = SerializeObjectToXmlString(Out_exitosa, typeof(DataContractConsultaRecaudoBCSResponseExitosa));
+                        output.transactionXML.parametersXML = xmlStringExitosa;
+                        return Tuple.Create(output, error_msg, id_trx, res_flujo);
+                    }
+                }
+                catch (Exception excep)
+                {
+                    throw new Exception($"Exception = {excep.Message}", excep);
+                }
+            }
+            catch (Exception excep)
+            {
+                error_msg = new Dictionary<string, dynamic>()
+                {
+                    { "name", error_name},
+                    { "blocking", true},
+                    { "context", excep},
+                    { "description", error_user },
+                    { "error_pdp", error_pdp },
+                };
+                Out_fallida.responseError = new DataConsultaRecaudoBCSResponseError();
+                Out_fallida.totalValue = 0;
+                Out_fallida.responseCode = "ER";
+                Out_fallida.responseError.errorCode = "00001";
+                Out_fallida.responseError.errorType = "GEN";
+                Out_fallida.responseError.errorDescription = $"{error_msg["error_pdp"]}";
+                Out_fallida.responseError.errorTechnicalDescription = $"{error_msg["description"]}, {error_msg["name"]}, {error_msg["context"]}, {error_msg["blocking"]}";
+                string xmlStringFallida = SerializeObjectToXmlString(Out_fallida, typeof(DataContractConsultaRecaudoBCSResponse));
+                output.transactionXML.parametersXML = xmlStringFallida;
+                return Tuple.Create(output, error_msg, id_trx, res_flujo);
+            }
         }
     }
 }

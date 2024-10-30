@@ -100,7 +100,8 @@ namespace WebServiceBancos.Logs
             {
                 { "requestXML", requestXML}
             };
-
+            
+            Console.WriteLine(obj_utils.JsonSerializerCustom(column_input));
             int cant_soap= get_pk_log_type_value("SOAP");
 
             Dictionary<string, dynamic> data_insert = new Dictionary<string, dynamic>()

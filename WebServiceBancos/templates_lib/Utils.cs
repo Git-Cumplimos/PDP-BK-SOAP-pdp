@@ -17,6 +17,7 @@ namespace WebServiceBancos.templates_lib
                 value = value.Replace('\"', '`');
                 value = value.Replace("\r", "\\r");
                 value = value.Replace("\n", "\\n");
+                value = value.Replace("\t", " ");
                 data_list.Add($"\"{data_ind.Key}\" : \"{value}\" ");
             }
 

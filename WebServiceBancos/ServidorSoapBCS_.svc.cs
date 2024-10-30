@@ -57,12 +57,6 @@ namespace WebServiceBancos
             }
         }
 
-        private static string RemoveInvalidCharacters(string text)
-        {
-            // Eliminar caracteres no imprimibles
-            return new string(text.Where(c => !char.IsControl(c)).ToArray());
-        }
-
         [OperationBehavior]
         public responseMsgB2B invokeSync(requestMsgB2B input)
         {
@@ -112,6 +106,32 @@ namespace WebServiceBancos
                     error_user = "Error con el log request";
                     error_pdp = "Error respuesta PDP: (Error con los logs [consultaRecaudoBCS])";
                     //<<<<<<>>>>>>>>>>
+                    try
+                    {
+                        obj_logger.before_app_request();
+                    }
+                    catch (Exception ex)
+                    {
+                        error_msg = new Dictionary<string, dynamic>()
+                        {
+                            { "name", error_name},
+                            { "blocking", true},
+                            { "context", $"{ex.Message}"},
+                            { "description", error_user },
+                            { "error_pdp", error_pdp },
+                        };
+                        Out_fallida.totalValue = 0;
+                        Out_fallida.responseError = new DataConsultaRecaudoBCSResponseError();
+                        Out_fallida.responseCode = "ER";
+                        Out_fallida.responseError.errorCode = "00001";
+                        Out_fallida.responseError.errorType = "GEN";
+                        Out_fallida.responseError.errorDescription = $"{error_msg["error_pdp"]}";
+                        Out_fallida.responseError.errorTechnicalDescription = $"{error_msg["description"]}, {error_msg["name"]}, {error_msg["context"]}, {error_msg["blocking"]}";
+                        // Serializar el objeto a XML
+                        string xmlStringFallida = SerializeObjectToXmlString(Out_fallida, typeof(DataContractConsultaRecaudoBCSResponse));
+                        output.transactionXML.parametersXML = xmlStringFallida;
+                        return output;
+                    }
 
                     //llamar al flujo
                     Tuple<responseMsgB2B, Dictionary<string, dynamic>, string, Dictionary<string, dynamic>> res_flujo = FlujoConsultaRecaudoBCS(input, obj_logger);
@@ -119,9 +139,28 @@ namespace WebServiceBancos
                     error_msg = res_flujo.Item2;
                     string id_trx = res_flujo.Item3;
                     data_flujo = res_flujo.Item4;
+                    application = (string)data_flujo["application"];
+                    application = application.ToUpper();
+                    string terminal = (string)data_flujo["id_terminal"];
+                    string usuario = (string)data_flujo["id_usuario"];
+                    string type_trx_rec = Environment.ExpandEnvironmentVariables(ConfigurationManager.AppSettings.Get("TYPE_TRX_CONS_REC_EMP_" + application));
+                    long referencia1;
+                    string id_comercio = content.Element("reference1")?.Value;
+                    if (!Int64.TryParse(id_comercio, NumberStyles.Integer, CultureInfo.InvariantCulture, out referencia1))
+                    {
+                        referencia1 = -1;
+                    }
+                    else
+                    {
+                        referencia1 = Convert.ToInt64(id_comercio);
+                    }
+                    decimal totalValue = 0;
+                    if (decimal.TryParse(content.Element("totalValue")?.Value, out totalValue))
+                    {
+                        totalValue = (totalValue / 100);
+                    }
 
-                    Console.WriteLine(output.transactionXML.parametersXML);
-
+                    Dictionary<string, dynamic> data_insert = new Dictionary<string, dynamic>();
                     string xmlString = Regex.Replace(output.transactionXML.parametersXML, @"[^\x20-\x7E]", string.Empty);
                     XmlDocument xmlDoc = new XmlDocument();
                     xmlDoc.LoadXml(xmlString.Trim());                    
@@ -129,28 +168,150 @@ namespace WebServiceBancos
                     XmlNodeList responseCodeNodes = xmlDoc.GetElementsByTagName("responseCode");
                     XmlNode responseCodeNode = responseCodeNodes[0];
                     string responseCode = responseCodeNode?.InnerText;
-                    Console.WriteLine(responseCode);
 
-                    XmlNodeList responseDescriptionNodes = xmlDoc.GetElementsByTagName("responseCode");
+                    XmlNodeList responseDescriptionNodes = xmlDoc.GetElementsByTagName("responseDescription");
                     XmlNode responseDescriptionNode = responseDescriptionNodes[0];
                     string responseDescription = responseDescriptionNode?.InnerText;
-                    Console.WriteLine(responseDescription);
 
                     XmlNodeList responseErrorNodes = xmlDoc.GetElementsByTagName("responseError");
                     if (responseErrorNodes.Count > 0)
                     {
                         XmlNode responseErrorNode = responseErrorNodes[0];
-                        string errorCode = responseErrorNode["errorCode"]?.InnerText;
-                        Console.WriteLine(errorCode);
+                        //string errorCode = responseErrorNode["errorCode"]?.InnerText;
+                        string errorDescription = responseErrorNode["errorDescription"]?.InnerText;
+                        data_insert = new Dictionary<string, dynamic>(){
+                            { "id_trx",(id_trx != "")?id_trx:null},
+                            { "id_log_trx", obj_logger.id_log },
+                            { "nombre_banco", "caja_social" },
+                            { "valor_trx", 0 },
+                            { "fecha_trx", crearFechaUtc_m5() },
+                            { "res_obj", new Dictionary<string, dynamic>(){
+                                { "msg", "Caja social- consulta "+errorDescription},
+                                { "status", responseCode.Equals("OK") },
+                                { "codigo", responseCode },
+                                { "obj", error_msg },
+                            } },
+                            { "status_trx", responseCode.Equals("OK") },
+                            { "data_contingencia", null },
+                            { "id_tipo_transaccion", type_trx_rec },
+                            { "name_tipo_transaccion", "Caja Social - Consulta Recaudo" },
+                            { "inf_comercio", new Dictionary<string, dynamic>(){
+                                        {"id_comercio", (id_comercio != "") ? referencia1 : (long?)null},
+                                        {"id_usuario", usuario},
+                                        {"id_terminal", terminal}
+                            }},
+                            { "fecha_trx_asincrona", crearFechaUtc_m5()},
+                            { "is_trx_contingencia", false}
+                        };
                     }
                     else 
                     {
-                        Console.WriteLine();
+                        data_insert = new Dictionary<string, dynamic>(){
+                            { "id_trx",(id_trx != "")?id_trx:null},
+                            { "id_log_trx", obj_logger.id_log },
+                            { "nombre_banco", "caja_social" },
+                            { "valor_trx", totalValue.ToString().Replace(",", ".") },
+                            { "fecha_trx", crearFechaUtc_m5() },
+                            { "res_obj", new Dictionary<string, dynamic>(){
+                                { "msg", "Caja social- consulta "+responseDescription},
+                                { "status", responseCode.Equals("OK") },
+                                { "codigo", responseCode },
+                                { "obj", error_msg },
+                            } },
+                            { "status_trx", responseCode.Equals("OK") },
+                            { "data_contingencia", null },
+                            { "id_tipo_transaccion", type_trx_rec},
+                            { "name_tipo_transaccion", "Caja Social - Consulta Recaudo" },
+                            { "inf_comercio", new Dictionary<string, dynamic>(){
+                                        {"id_comercio", (id_comercio != "") ? referencia1 : (long?)null},
+                                        {"id_usuario", usuario},
+                                        {"id_terminal", terminal}
+                            }},
+                            { "fecha_trx_asincrona", crearFechaUtc_m5()},
+                            { "is_trx_contingencia", false}
+                        };
                     }
-                    return output;
-                    
-
+                    Console.WriteLine(data_insert);
+                    try
+                    {
+                        queries_base query_helper = new queries_base();
+                        query_helper.Insertar("tbl_recaudo_integrado_bancos", data_insert, application);
+                    }
+                    catch (ConexionBD.Conexion.NpgsqConnectionCustomException ex)
+                    {
+                        error_user = ex.Message;
+                        throw new Exception($"NpgsqConnectionCustomException = {ex}", ex);
+                    }
+                    catch (NpgsqlException ex)
+                    {
+                        throw new Exception($"NpgsqlException = {ex.Message}", ex);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception($"Exception = {ex.Message}", ex);
+                    }
+                    //Secuencia actualizar log id trx 
+                    //<<<<<<>>>>>>>>>>
+                    error_name = "error_log_response";
+                    error_user = "Error con al modificar el response en los logs id trx";
+                    error_pdp = "Error respuesta: Fallo al consumir servicio de transacciones [0010009]";
+                    //<<<<<<>>>>>>>>>>
+                    try
+                    {
+                        trx_service RealizarPeticion = new trx_service(obj_logger);
+                        RealizarPeticion.RealizarPeticionPut(data_insert["id_trx"], type_trx_rec, data_insert["res_obj"]["msg"], data_insert, application, responseCode.Equals("OK")).GetAwaiter().GetResult();
+                    }
+                    catch (Exception ex)
+                    {
+                        error_msg = new Dictionary<string, dynamic>()
+                    {
+                        { "name", error_name},
+                        { "blocking", true},
+                        { "context", $"{ex.Message}"},
+                        { "description", error_user },
+                        { "error_pdp", error_pdp },
+                    };
+                        Out_fallida.totalValue = 0;
+                        Out_fallida.responseError = new DataConsultaRecaudoBCSResponseError();
+                        Out_fallida.responseCode = "ER";
+                        Out_fallida.responseError.errorCode = "00001";
+                        Out_fallida.responseError.errorType = "GEN";
+                        Out_fallida.responseError.errorDescription = $"{error_msg["error_pdp"]}";
+                        Out_fallida.responseError.errorTechnicalDescription = $"{error_msg["description"]}, {error_msg["name"]}, {error_msg["context"]}, {error_msg["blocking"]}";
+                        // Serializar el objeto a XML
+                        string xmlStringFallida = SerializeObjectToXmlString(Out_fallida, typeof(DataContractConsultaRecaudoBCSResponse));
+                        output.transactionXML.parametersXML = xmlStringFallida;
+                        return output;
+                    }
+                    //<<<<<<>>>>>>>>>> Secuencia response log
+                    //<<<<<<>>>>>>>>>>
+                    error_name = "error_log_response";
+                    error_user = "Error con response log";
+                    error_pdp = "Error respuesta PDP: (Error con los logs [consultaRecaudoBCS])";
+                    //<<<<<<>>>>>>>>>>
+                    try
+                    {
+                        Dictionary<string, dynamic> aditional = null;
+                        if (error_msg["context"] != "")
+                        {
+                            aditional = new Dictionary<string, dynamic>() { { "causal", $"{error_msg["context"]}" } };
+                        }
+                        obj_logger.after_app_request_service(output, typeof(requestMsgB2B), true, aditional, data_insert["id_trx"]);
+                    }
+                    catch (Exception ex)
+                    {
+                        error_msg = new Dictionary<string, dynamic>()
+                        {
+                            { "name", error_name},
+                            { "blocking", false},
+                            { "context", $"{ex.Message}"},
+                            { "description", error_user },
+                            { "error_pdp", error_pdp },
+                        };
+                    }
+                    return output;                  
                 }
+
                 else if (content.Name.LocalName == "notificationOfCollectionRequest")
                 {
                     return output;
@@ -173,312 +334,6 @@ namespace WebServiceBancos
                 throw new FaultException<faultServiceB2BException>(theFault, new FaultReason(theFault.error.errorMessage));
             }
         }
-
-        //[OperationBehavior]
-        //public consultaRecaudoBCSResponse consultaRecaudoBCS(transactionXMLConsultaRequest input)
-        //{
-        //    consultaRecaudoBCSResponse output = new consultaRecaudoBCSResponse();
-        //    output.transactionXML = new transactionXMLResponse();
-        //    output.transactionXML.parametersXML = new parametersXMLResponse();
-
-        //    DataContractConsultaRecaudoBCSResponseExitosa Out_exitosa = new DataContractConsultaRecaudoBCSResponseExitosa();
-        //    Out_exitosa.paymentReference = input.transactionXML.contentXML.consultOfCollectionRequest.reference1;
-        //    Out_exitosa.EANCode = input.transactionXML.contentXML.consultOfCollectionRequest.EANCode;
-        //    Out_exitosa.reference1 = input.transactionXML.contentXML.consultOfCollectionRequest.reference1;
-        //    Out_exitosa.reference2 = "";
-        //    Out_exitosa.expirationDate = input.transactionXML.contentXML.consultOfCollectionRequest.expirationDate;
-        //    Out_exitosa.paymentDate = input.transactionXML.contentXML.consultOfCollectionRequest.transactionDate;
-        //    Out_exitosa.paymentType = "0";
-
-        //    DataContractConsultaRecaudoBCSResponse Out_fallida = new DataContractConsultaRecaudoBCSResponse();
-        //    Out_fallida.paymentReference = input.transactionXML.contentXML.consultOfCollectionRequest.reference1;
-        //    Out_fallida.EANCode = input.transactionXML.contentXML.consultOfCollectionRequest.EANCode;
-        //    Out_fallida.reference1 = input.transactionXML.contentXML.consultOfCollectionRequest.reference1;
-        //    Out_fallida.reference2 = "";
-        //    Out_fallida.expirationDate = input.transactionXML.contentXML.consultOfCollectionRequest.expirationDate;
-        //    Out_fallida.paymentDate = input.transactionXML.contentXML.consultOfCollectionRequest.transactionDate;
-        //    Out_fallida.paymentType = "0";
-
-        //    Dictionary<string, dynamic> data_flujo = new Dictionary<string, dynamic>();
-        //    Dictionary<string, dynamic> error_msg = new Dictionary<string, dynamic>();
-        //    string application = "";
-        //    string error_name = "";
-        //    string error_user = "";
-        //    string error_pdp = "";
-        //    LoggerCustom obj_logger = new LoggerCustom(OperationContext.Current);
-
-        //    //Secuencia log de entrada
-        //    //<<<<<<>>>>>>>>>>
-        //    error_name = "error_log_request";
-        //    error_user = "Error con el log request";
-        //    error_pdp = "Error respuesta PDP: (Error con los logs [consultaRecaudoBCS])";
-        //    //<<<<<<>>>>>>>>>>
-        //    try
-        //    {
-        //        obj_logger.before_app_request();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        error_msg = new Dictionary<string, dynamic>()
-        //        {
-        //            { "name", error_name},
-        //            { "blocking", true},
-        //            { "context", $"{ex.Message}"},
-        //            { "description", error_user },
-        //            { "error_pdp", error_pdp },
-        //        };
-        //        Out_fallida.totalValue = 0;
-        //        Out_fallida.responseError = new DataConsultaRecaudoBCSResponseError();
-        //        Out_fallida.responseCode = "ER";
-        //        Out_fallida.responseError.errorCode = "00001";
-        //        Out_fallida.responseError.errorType = "GEN";
-        //        Out_fallida.responseError.errorDescription = $"{error_msg["error_pdp"]}";
-        //        Out_fallida.responseError.errorTechnicalDescription = $"{error_msg["description"]}, {error_msg["name"]}, {error_msg["context"]}, {error_msg["blocking"]}";
-        //        output.transactionXML.parametersXML.consultOfColectionResponse = Out_fallida;
-        //        return output;
-        //    }
-
-        //    //llamar al flujo
-        //    Tuple<consultaRecaudoBCSResponse, Dictionary<string, dynamic>, string, Dictionary<string, dynamic>> res_flujo = FlujoConsultaRecaudoBCS(input, obj_logger);
-        //    output = res_flujo.Item1;
-        //    error_msg = res_flujo.Item2;
-        //    string id_trx = res_flujo.Item3;
-        //    data_flujo = res_flujo.Item4;
-        //    application = (string)data_flujo["application"];
-        //    application=application.ToUpper();
-        //    string terminal = (string)data_flujo["id_terminal"];
-        //    string usuario = (string)data_flujo["id_usuario"];
-        //    string type_trx_rec = Environment.ExpandEnvironmentVariables(ConfigurationManager.AppSettings.Get("TYPE_TRX_CONS_REC_EMP_" + application));
-        //    long referencia1;
-        //    string id_comercio = input.transactionXML.contentXML.consultOfCollectionRequest.reference1;
-        //    if (!Int64.TryParse(id_comercio, NumberStyles.Integer, CultureInfo.InvariantCulture, out referencia1))
-        //    {
-        //        referencia1 = -1;
-        //    }
-        //    else
-        //    {
-        //        referencia1 = Convert.ToInt64(input.transactionXML.contentXML.consultOfCollectionRequest.reference1);
-        //    }
-        //    decimal totalValue = 0;
-        //    if (decimal.TryParse(input.transactionXML.contentXML.consultOfCollectionRequest.totalValue, out totalValue))
-        //    {
-        //        totalValue = (totalValue / 100);
-        //    }
-        //    DataContractConsultaRecaudoBCSResponseExitosa data = output.transactionXML.parametersXML.consultOfColectionResponse as DataContractConsultaRecaudoBCSResponseExitosa;
-        //    DataContractConsultaRecaudoBCSResponse data_error = output.transactionXML.parametersXML.consultOfColectionResponse as DataContractConsultaRecaudoBCSResponse;
-
-        //    if (data != null)
-        //    {
-        //        Dictionary<string, dynamic> data_insert = new Dictionary<string, dynamic>(){
-        //                    { "id_trx",(id_trx != "")?id_trx:null},
-        //                    { "id_log_trx", obj_logger.id_log },
-        //                    { "nombre_banco", "caja_social" },
-        //                    { "valor_trx", totalValue.ToString().Replace(",", ".") },
-        //                    { "fecha_trx", crearFechaUtc_m5() },
-        //                    { "res_obj", new Dictionary<string, dynamic>(){
-        //                        { "msg", "Caja social- consulta "+data.responseDescription},
-        //                        { "status", data.responseCode.Equals("OK") },
-        //                        { "codigo", data.responseCode },
-        //                        { "obj", error_msg },
-        //                    } },
-        //                    { "status_trx", data.responseCode.Equals("OK") },
-        //                    { "data_contingencia", null },
-        //                    { "id_tipo_transaccion", type_trx_rec},
-        //                    { "name_tipo_transaccion", "Caja Social - Consulta Recaudo" },
-        //                    { "inf_comercio", new Dictionary<string, dynamic>(){
-        //                                {"id_comercio", (input.transactionXML.contentXML.consultOfCollectionRequest.reference1 != "") ? referencia1 : (long?)null},
-        //                                {"id_usuario", usuario},
-        //                                {"id_terminal", terminal}
-        //                    }},
-        //                    { "fecha_trx_asincrona", crearFechaUtc_m5()},
-        //                    { "is_trx_contingencia", false}
-        //                };
-        //        Console.WriteLine(data_insert);
-        //        try
-        //        {
-        //            queries_base query_helper = new queries_base();
-        //            query_helper.Insertar("tbl_recaudo_integrado_bancos", data_insert, application);
-        //        }
-        //        catch (ConexionBD.Conexion.NpgsqConnectionCustomException ex)
-        //        {
-        //            error_user = ex.Message;
-        //            throw new Exception($"NpgsqConnectionCustomException = {ex}", ex);
-        //        }
-        //        catch (NpgsqlException ex)
-        //        {
-        //            throw new Exception($"NpgsqlException = {ex.Message}", ex);
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            throw new Exception($"Exception = {ex.Message}", ex);
-        //        }
-        //        //Secuencia actualizar log id trx 
-        //        //<<<<<<>>>>>>>>>>
-        //        error_name = "error_log_response";
-        //        error_user = "Error con al modificar el response en los logs id trx";
-        //        error_pdp = "Error respuesta: Fallo al consumir servicio de transacciones [0010009]";
-        //        //<<<<<<>>>>>>>>>>
-        //        try
-        //        {
-        //            trx_service RealizarPeticion = new trx_service(obj_logger);
-        //            RealizarPeticion.RealizarPeticionPut(data_insert["id_trx"], type_trx_rec, data_insert["res_obj"]["msg"], data_insert,application,data.responseCode.Equals("OK")).GetAwaiter().GetResult();
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            error_msg = new Dictionary<string, dynamic>()
-        //            {
-        //                { "name", error_name},
-        //                { "blocking", true},
-        //                { "context", $"{ex.Message}"},
-        //                { "description", error_user },
-        //                { "error_pdp", error_pdp },
-        //            };
-        //            Out_fallida.totalValue = 0;
-        //            Out_fallida.responseError = new DataConsultaRecaudoBCSResponseError();
-        //            Out_fallida.responseCode = "ER";
-        //            Out_fallida.responseError.errorCode = "00001";
-        //            Out_fallida.responseError.errorType = "GEN";
-        //            Out_fallida.responseError.errorDescription = $"{error_msg["error_pdp"]}";
-        //            Out_fallida.responseError.errorTechnicalDescription = $"{error_msg["description"]}, {error_msg["name"]}, {error_msg["context"]}, {error_msg["blocking"]}";
-        //            output.transactionXML.parametersXML.consultOfColectionResponse = Out_fallida;
-        //            return output;
-        //        }
-
-        //        //<<<<<<>>>>>>>>>> Secuencia response log
-        //        //<<<<<<>>>>>>>>>>
-        //        error_name = "error_log_response";
-        //        error_user = "Error con response log";
-        //        error_pdp = "Error respuesta PDP: (Error con los logs [consultaRecaudoBCS])";
-        //        //<<<<<<>>>>>>>>>>
-        //        try
-        //        {
-        //            Dictionary<string, dynamic> aditional = null;
-        //            if (error_msg["context"] != "")
-        //            {
-        //                aditional = new Dictionary<string, dynamic>() { { "causal", $"{error_msg["context"]}" } };
-        //            }
-        //            obj_logger.after_app_request_service(output, typeof(consultaRecaudoBCSResponse), true, aditional, data_insert["id_trx"]);
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            error_msg = new Dictionary<string, dynamic>()
-        //            {
-        //                { "name", error_name},
-        //                { "blocking", false},
-        //                { "context", $"{ex.Message}"},
-        //                { "description", error_user },
-        //                { "error_pdp", error_pdp },
-        //            };
-        //        }
-        //        return output;
-        //    }
-        //    else
-        //    {
-        //        Dictionary<string, dynamic> data_insert = new Dictionary<string, dynamic>(){
-        //            { "id_trx",(id_trx != "")?id_trx:null},
-        //            { "id_log_trx", obj_logger.id_log },
-        //            { "nombre_banco", "caja_social" },
-        //            { "valor_trx", data_error.totalValue },
-        //            { "fecha_trx", crearFechaUtc_m5() },
-        //            { "res_obj", new Dictionary<string, dynamic>(){
-        //                { "msg", "Caja social- consulta "+data_error.responseError.errorDescription},
-        //                { "status", data_error.responseCode.Equals("OK") },
-        //                { "codigo", data_error.responseCode },
-        //                { "obj", error_msg },
-        //            } },
-        //            { "status_trx", data_error.responseCode.Equals("OK") },
-        //            { "data_contingencia", null },
-        //            { "id_tipo_transaccion", type_trx_rec },
-        //            { "name_tipo_transaccion", "Caja Social - Consulta Recaudo" },
-        //            { "inf_comercio", new Dictionary<string, dynamic>(){
-        //                        {"id_comercio", (input.transactionXML.contentXML.consultOfCollectionRequest.reference1 != "") ? referencia1 : (long?)null},
-        //                        {"id_usuario", usuario},
-        //                        {"id_terminal", terminal}
-        //            }},
-        //            { "fecha_trx_asincrona", crearFechaUtc_m5()},
-        //            { "is_trx_contingencia", false}
-        //        };
-        //        Console.WriteLine(data_insert);
-        //        try
-        //        {
-        //            queries_base query_helper = new queries_base();
-        //            query_helper.Insertar("tbl_recaudo_integrado_bancos", data_insert,application);
-        //        }
-        //        catch (ConexionBD.Conexion.NpgsqConnectionCustomException ex)
-        //        {
-        //            error_user = ex.Message;
-        //            throw new Exception($"NpgsqConnectionCustomException = {ex}", ex);
-        //        }
-        //        catch (NpgsqlException ex)
-        //        {
-        //            throw new Exception($"NpgsqlException = {ex.Message}", ex);
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            throw new Exception($"Exception = {ex.Message}", ex);
-        //        }
-        //        //Secuencia actualizar log id trx 
-        //        //<<<<<<>>>>>>>>>>
-        //        error_name = "error_log_response";
-        //        error_user = "Error con al modificar el response en los logs id trx";
-        //        error_pdp = "Error respuesta: Fallo al consumir servicio de transacciones [0010009]";
-        //        //<<<<<<>>>>>>>>>>
-        //        try
-        //        {
-        //            trx_service RealizarPeticion = new trx_service(obj_logger);
-        //            RealizarPeticion.RealizarPeticionPut(data_insert["id_trx"], type_trx_rec, data_insert["res_obj"]["msg"], data_insert, application,data_error.responseCode.Equals("OK")).GetAwaiter().GetResult();
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            error_msg = new Dictionary<string, dynamic>()
-        //            {
-        //                { "name", error_name},
-        //                { "blocking", true},
-        //                { "context", $"{ex.Message}"},
-        //                { "description", error_user },
-        //                { "error_pdp", error_pdp },
-        //            };
-        //            Out_fallida.totalValue = 0;
-        //            Out_fallida.responseError = new DataConsultaRecaudoBCSResponseError();
-        //            Out_fallida.responseCode = "ER";
-        //            Out_fallida.responseError.errorCode = "00001";
-        //            Out_fallida.responseError.errorType = "GEN";
-        //            Out_fallida.responseError.errorDescription = $"{error_msg["error_pdp"]}";
-        //            Out_fallida.responseError.errorTechnicalDescription = $"{error_msg["description"]}, {error_msg["name"]}, {error_msg["context"]}, {error_msg["blocking"]}";
-        //            output.transactionXML.parametersXML.consultOfColectionResponse = Out_fallida;
-        //            return output;
-        //        }
-        //        //<<<<<<>>>>>>>>>> Secuencia response log
-        //        //<<<<<<>>>>>>>>>>
-        //        error_name = "error_log_response";
-        //        error_user = "Error con response log";
-        //        error_pdp = "Error respuesta PDP: (Error con los logs [consultaRecaudoBCS])";
-        //        //<<<<<<>>>>>>>>>>
-        //        try
-        //        {
-        //            Dictionary<string, dynamic> aditional = null;
-        //            if (error_msg["context"] != "")
-        //            {
-        //                aditional = new Dictionary<string, dynamic>() { { "causal", $"{error_msg["context"]}" } };
-        //            }
-        //            obj_logger.after_app_request_service(output, typeof(consultaRecaudoBCSResponse), true, aditional, data_insert["id_trx"]);
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            error_msg = new Dictionary<string, dynamic>()
-        //            {
-        //                { "name", error_name},
-        //                { "blocking", false},
-        //                { "context", $"{ex.Message}"},
-        //                { "description", error_user },
-        //                { "error_pdp", error_pdp },
-        //            };
-        //        }
-        //        return output;
-        //    }
-
-        //}
-
     }
 
 }
