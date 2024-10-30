@@ -16,7 +16,7 @@ namespace WebServiceBancos
     {
         [OperationContract]
         [FaultContract(typeof(faultServiceB2BException), Name = "errorTransactionXML")]
-        responseMsgB2B InvokeSync(requestMsgB2B request);
+        responseMsgB2B invokeSync(requestMsgB2B request);
         // TODO: agregue aquí sus operaciones de servicio
     }
 
@@ -26,13 +26,13 @@ namespace WebServiceBancos
     public class requestMsgB2B
     {
         [MessageBodyMember(Namespace = "")]
-        public string transactionXMLprueba;
+        public TransactionXML transactionXML;
     }
     [MessageContract(IsWrapped = false)]
     public class responseMsgB2B
     {
         [MessageBodyMember(Namespace = "")]
-        public ResponseMsgB2BXML transactionXML;
+        public TransactionXML transactionXML; //DUDA
     }
 
     [MessageContract(IsWrapped = false)]

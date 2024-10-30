@@ -61,26 +61,128 @@ namespace WebServiceBancos.CServidorSoapBCS
         [DataMember(IsRequired = true)] public content contentXML;
     }
 
-    [DataContract(Namespace = "")]
-    public class transactionXMLResponse
+    //[DataContract(Namespace = "")]
+    //public class transactionXMLResponse
+    //{
+    //    [DataMember(IsRequired = true)] public parametersXMLResponse parametersXML;
+    //}
+
+    //[DataContract(Namespace = "")]
+    //public class parametersXMLResponse
+    //{
+    //    [DataMember(IsRequired = true)] public DataConsultaRecaudoBResponse consultOfColectionResponse { get; set; }
+    //}
+
+    //[DataContract(Namespace = "")]
+    //[KnownType(typeof(DataContractConsultaRecaudoBCSResponse))]
+    //[KnownType(typeof(DataContractConsultaRecaudoBCSResponseExitosa))]
+
+    //public abstract class DataConsultaRecaudoBResponse { }
+
+    [DataContract(Name = "consultOfCollectionResponse")]
+    public class DataContractConsultaRecaudoBCSResponseExitosa
     {
-        [DataMember(IsRequired = true)] public parametersXMLResponse parametersXML;
+        private string paymentReference_ = null;
+        private string EANCode_ = null;
+        private string reference1_ = null;
+        private string reference2_ = null;
+        private string expirationDate_ = null;
+        private string paymentDate_ = null;
+        private decimal totalValue_ = 0;
+        private string paymentType_ = null;
+        private string address_ = "";
+        private string userName_ = "";
+        private string responseCode_ = "ER";
+        private string responseDescription_ = "";
+
+        [DataMember(Order = 1)]
+        public string paymentReference
+        {
+            get { return paymentReference_; }
+            set { paymentReference_ = value; }
+        }
+
+        [DataMember(Order = 2)]
+        public string EANCode
+        {
+            get { return EANCode_; }
+            set { EANCode_ = value; }
+        }
+
+        [DataMember(Order = 3)]
+        public string reference1
+        {
+            get { return reference1_; }
+            set { reference1_ = value; }
+        }
+
+        [DataMember(Order = 4)]
+        public string reference2
+        {
+            get { return reference2_; }
+            set { reference2_ = value; }
+        }
+
+        [DataMember(Order = 5)]
+        public string expirationDate
+        {
+            get { return expirationDate_; }
+            set { expirationDate_ = value; }
+        }
+
+        [DataMember(Order = 6)]
+        public string paymentDate
+        {
+            get { return paymentDate_; }
+            set { paymentDate_ = value; }
+        }
+
+        [DataMember(Order = 7)]
+        public decimal totalValue
+        {
+            get { return totalValue_; }
+            set { totalValue_ = value; }
+        }
+
+        [DataMember(Order = 8)]
+        public string paymentType
+        {
+            get { return paymentType_; }
+            set { paymentType_ = value; }
+        }
+
+        [DataMember(Order = 9)]
+        public string address
+        {
+            get { return address_; }
+            set { address_ = value; }
+        }
+
+        [DataMember(Order = 10)]
+        public string userName
+        {
+            get { return userName_; }
+            set { userName_ = value; }
+        }
+
+        [DataMember(Order = 11)]
+        public string responseCode
+        {
+            get { return responseCode_; }
+            set { responseCode_ = value; }
+        }
+
+        [DataMember(Order = 12)]
+        public string responseDescription
+        {
+            get { return responseDescription_; }
+            set { responseDescription_ = value; }
+        }
+
     }
 
-    [DataContract(Namespace = "")]
-    public class parametersXMLResponse
-    {
-        [DataMember(IsRequired = true)] public DataConsultaRecaudoBResponse consultOfColectionResponse { get; set; }
-    }
-
-    [DataContract(Namespace = "")]
-    [KnownType(typeof(DataContractConsultaRecaudoBCSResponse))]
-    [KnownType(typeof(DataContractConsultaRecaudoBCSResponseExitosa))]
-
-    public abstract class DataConsultaRecaudoBResponse { }
-
-    [DataContract(Namespace = "")]
-    public class DataContractConsultaRecaudoBCSResponse : DataConsultaRecaudoBResponse
+    [DataContract(Name = "consultOfCollectionResponse")]
+    public class DataContractConsultaRecaudoBCSResponse
     {
         private string paymentReference_ = null;
         private string EANCode_ = null;
@@ -184,108 +286,6 @@ namespace WebServiceBancos.CServidorSoapBCS
         public DataConsultaRecaudoBCSResponseError responseError
         {
             get; set;
-        }
-
-    }
-
-    [DataContract(Namespace = "")]
-    public class DataContractConsultaRecaudoBCSResponseExitosa : DataConsultaRecaudoBResponse
-    {
-        private string paymentReference_ = null;
-        private string EANCode_ = null;
-        private string reference1_ = null;
-        private string reference2_ = null;
-        private string expirationDate_ = null;
-        private string paymentDate_ = null;
-        private decimal totalValue_ = 0;
-        private string paymentType_ = null;
-        private string address_ = "";
-        private string userName_ = "";
-        private string responseCode_ = "ER";
-        private string responseDescription_ = "";
-
-        [DataMember(Order = 1)]
-        public string paymentReference
-        {
-            get { return paymentReference_; }
-            set { paymentReference_ = value; }
-        }
-
-        [DataMember(Order = 2)]
-        public string EANCode
-        {
-            get { return EANCode_; }
-            set { EANCode_ = value; }
-        }
-
-        [DataMember(Order = 3)]
-        public string reference1
-        {
-            get { return reference1_; }
-            set { reference1_ = value; }
-        }
-
-        [DataMember(Order = 4)]
-        public string reference2
-        {
-            get { return reference2_; }
-            set { reference2_ = value; }
-        }
-
-        [DataMember(Order = 5)]
-        public string expirationDate
-        {
-            get { return expirationDate_; }
-            set { expirationDate_ = value; }
-        }
-
-        [DataMember(Order = 6)]
-        public string paymentDate
-        {
-            get { return paymentDate_; }
-            set { paymentDate_ = value; }
-        }
-
-        [DataMember(Order = 7)]
-        public decimal totalValue
-        {
-            get { return totalValue_; }
-            set { totalValue_ = value; }
-        }
-
-        [DataMember(Order = 8)]
-        public string paymentType
-        {
-            get { return paymentType_; }
-            set { paymentType_ = value; }
-        }
-
-        [DataMember(Order = 9)]
-        public string address
-        {
-            get { return address_; }
-            set { address_ = value; }
-        }
-
-        [DataMember(Order = 10)]
-        public string userName
-        {
-            get { return userName_; }
-            set { userName_ = value; }
-        }
-
-        [DataMember(Order = 11)]
-        public string responseCode
-        {
-            get { return responseCode_; }
-            set { responseCode_ = value; }
-        }
-
-        [DataMember(Order = 12)]
-        public string responseDescription
-        {
-            get { return responseDescription_; }
-            set { responseDescription_ = value; }
         }
 
     }

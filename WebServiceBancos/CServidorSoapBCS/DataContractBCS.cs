@@ -20,22 +20,22 @@ namespace WebServiceBancos.CServidorSoapBCS
     public class ResponseMsgB2BXML
     {
         [DataMember]
-        public TransactionXML payload { get; set; }
+        public TransactionXML transactionXML; //DUDA
     }
 
     [DataContract(Namespace = "")]
     public class ErrorTransactionXML
     {
         [DataMember]
-        public int ErrorCode { get; set; }
+        public int errorCode { get; set; }
 
         [DataMember]
-        public string ErrorType { get; set; }
+        public string errorType { get; set; }
 
         [DataMember]
-        public string ErrorMessage { get; set; }
+        public string errorMessage { get; set; }
 
         [DataMember]
-        public string ErrorDetail { get; set; }
+        public string errorDetail { get; set; }
     }
 }

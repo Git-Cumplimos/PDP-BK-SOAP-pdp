@@ -27,6 +27,8 @@ using WebServiceBancos.templates_lib;
 using System.Globalization;
 using System.Web.Services.Protocols;
 using System.Web.Services;
+using System.Runtime.Remoting.Metadata.W3cXsd2001;
+using System.Drawing.Imaging;
 
 namespace WebServiceBancos
 {
@@ -55,24 +57,120 @@ namespace WebServiceBancos
             }
         }
 
+        private static string RemoveInvalidCharacters(string text)
+        {
+            // Eliminar caracteres no imprimibles
+            return new string(text.Where(c => !char.IsControl(c)).ToArray());
+        }
+
         [OperationBehavior]
-        public responseMsgB2B InvokeSync(requestMsgB2B input)
+        public responseMsgB2B invokeSync(requestMsgB2B input)
         {
             responseMsgB2B output = new responseMsgB2B();
-            output.transactionXML = new ResponseMsgB2BXML();
+            output.transactionXML = new TransactionXML();
 
             faultServiceB2BException theFault = new faultServiceB2BException();
+            theFault.error = new ErrorTransactionXML();
+
             try
             {
-                //Console.WriteLine(input.transactionXML.contentXML);
-                //XElement content = XElement.Parse(input.transactionXML.contentXML);
-                //Console.WriteLine(content);
-                return output;
+                XElement content = XElement.Parse(input.transactionXML.contentXML);
+                XElement parameters = XElement.Parse(input.transactionXML.parametersXML);
+                Console.WriteLine(content);
+
+                if (content.Name.LocalName == "consultOfCollectionRequest")
+                {
+                    DataContractConsultaRecaudoBCSResponseExitosa Out_exitosa = new DataContractConsultaRecaudoBCSResponseExitosa();
+                    Out_exitosa.paymentReference = content.Element("reference1")?.Value;
+                    Out_exitosa.EANCode = content.Element("EANCode")?.Value;
+                    Out_exitosa.reference1 = content.Element("reference1")?.Value;
+                    Out_exitosa.reference2 = "";
+                    Out_exitosa.expirationDate = content.Element("expirationDate")?.Value;
+                    Out_exitosa.paymentDate = content.Element("transactionDate")?.Value;
+                    Out_exitosa.paymentType = "0";
+
+                    DataContractConsultaRecaudoBCSResponse Out_fallida = new DataContractConsultaRecaudoBCSResponse();
+                    Out_fallida.paymentReference = content.Element("reference1")?.Value;
+                    Out_fallida.EANCode = content.Element("EANCode")?.Value;
+                    Out_fallida.reference1 = content.Element("reference1")?.Value;
+                    Out_fallida.reference2 = "";
+                    Out_fallida.expirationDate = content.Element("expirationDate")?.Value;
+                    Out_fallida.paymentDate = content.Element("transactionDate")?.Value;
+                    Out_fallida.paymentType = "0";
+
+                    Dictionary<string, dynamic> data_flujo = new Dictionary<string, dynamic>();
+                    Dictionary<string, dynamic> error_msg = new Dictionary<string, dynamic>();
+                    string application = "";
+                    string error_name = "";
+                    string error_user = "";
+                    string error_pdp = "";
+                    LoggerCustom obj_logger = new LoggerCustom(OperationContext.Current);
+
+                    //Secuencia log de entrada
+                    //<<<<<<>>>>>>>>>>
+                    error_name = "error_log_request";
+                    error_user = "Error con el log request";
+                    error_pdp = "Error respuesta PDP: (Error con los logs [consultaRecaudoBCS])";
+                    //<<<<<<>>>>>>>>>>
+
+                    //llamar al flujo
+                    Tuple<responseMsgB2B, Dictionary<string, dynamic>, string, Dictionary<string, dynamic>> res_flujo = FlujoConsultaRecaudoBCS(input, obj_logger);
+                    output = res_flujo.Item1;
+                    error_msg = res_flujo.Item2;
+                    string id_trx = res_flujo.Item3;
+                    data_flujo = res_flujo.Item4;
+
+                    Console.WriteLine(output.transactionXML.parametersXML);
+
+                    string xmlString = Regex.Replace(output.transactionXML.parametersXML, @"[^\x20-\x7E]", string.Empty);
+                    XmlDocument xmlDoc = new XmlDocument();
+                    xmlDoc.LoadXml(xmlString.Trim());                    
+
+                    XmlNodeList responseCodeNodes = xmlDoc.GetElementsByTagName("responseCode");
+                    XmlNode responseCodeNode = responseCodeNodes[0];
+                    string responseCode = responseCodeNode?.InnerText;
+                    Console.WriteLine(responseCode);
+
+                    XmlNodeList responseDescriptionNodes = xmlDoc.GetElementsByTagName("responseCode");
+                    XmlNode responseDescriptionNode = responseDescriptionNodes[0];
+                    string responseDescription = responseDescriptionNode?.InnerText;
+                    Console.WriteLine(responseDescription);
+
+                    XmlNodeList responseErrorNodes = xmlDoc.GetElementsByTagName("responseError");
+                    if (responseErrorNodes.Count > 0)
+                    {
+                        XmlNode responseErrorNode = responseErrorNodes[0];
+                        string errorCode = responseErrorNode["errorCode"]?.InnerText;
+                        Console.WriteLine(errorCode);
+                    }
+                    else 
+                    {
+                        Console.WriteLine();
+                    }
+                    return output;
+                    
+
+                }
+                else if (content.Name.LocalName == "notificationOfCollectionRequest")
+                {
+                    return output;
+                }
+                else 
+                {
+                    theFault.error.errorCode = 1;
+                    theFault.error.errorType = "GEN";
+                    theFault.error.errorMessage = "CollectionRequest no esperado.";
+                    theFault.error.errorDetail = "contentXML: consultOfCollectionRequest ó notificationOfCollectionRequest";
+                    throw new FaultException<faultServiceB2BException>(theFault, new FaultReason(theFault.error.errorMessage));
+                }                
             }
             catch (Exception exp)
             {
-                theFault.error.ErrorMessage = "Some Error " + exp.Message.ToString();
-                throw new FaultException<faultServiceB2BException>(theFault);
+                theFault.error.errorCode = 1;
+                theFault.error.errorType = "GEN";
+                theFault.error.errorMessage = "Error inesperado";
+                theFault.error.errorDetail = exp.Message;
+                throw new FaultException<faultServiceB2BException>(theFault, new FaultReason(theFault.error.errorMessage));
             }
         }
 
