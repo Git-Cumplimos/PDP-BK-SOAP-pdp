@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Remoting.Messaging;
-using System.Runtime.Serialization;
 using System.ServiceModel;
 using System.Text;
 using System.Web.Services.Protocols;
@@ -15,7 +14,7 @@ namespace WebServiceBancos
     public interface IServidorSoapBCS_
     {
         [OperationContract]
-        [FaultContract(typeof(faultServiceB2BException), Name = "errorTransactionXML")]
+        [FaultContract(typeof(errorTransactionXML), Name = "serviceB2BException")]
         responseMsgB2B invokeSync(requestMsgB2B request);
         // TODO: agregue aquí sus operaciones de servicio
     }
@@ -26,20 +25,20 @@ namespace WebServiceBancos
     public class requestMsgB2B
     {
         [MessageBodyMember(Namespace = "")]
-        public TransactionXML transactionXML;
+        public transactionXML transactionXML;
     }
     [MessageContract(IsWrapped = false)]
     public class responseMsgB2B
     {
         [MessageBodyMember(Namespace = "")]
-        public TransactionXML transactionXML; //DUDA
+        public transactionXML transactionXML; //DUDA
     }
 
     [MessageContract(IsWrapped = false)]
     public class faultServiceB2BException
     {
         [MessageBodyMember(Namespace = "")]
-        public ErrorTransactionXML error { get; set; }
+        public errorTransactionXML error { get; set; }
     }
 
 }

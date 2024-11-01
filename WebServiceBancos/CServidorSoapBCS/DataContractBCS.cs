@@ -7,7 +7,7 @@ using System.Web;
 namespace WebServiceBancos.CServidorSoapBCS
 {
     [DataContract(Namespace = "")]
-    public class TransactionXML
+    public class transactionXML
     {
         [DataMember(IsRequired = true, Order = 1)]
         public string parametersXML { get; set; }
@@ -20,11 +20,11 @@ namespace WebServiceBancos.CServidorSoapBCS
     public class ResponseMsgB2BXML
     {
         [DataMember]
-        public TransactionXML transactionXML; //DUDA
+        public transactionXML transactionXML; //DUDA
     }
 
     [DataContract(Namespace = "")]
-    public class ErrorTransactionXML
+    public class errorTransactionXML
     {
         [DataMember]
         public int errorCode { get; set; }
