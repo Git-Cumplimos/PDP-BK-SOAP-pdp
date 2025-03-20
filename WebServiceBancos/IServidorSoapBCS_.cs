@@ -6,18 +6,20 @@ using System.Runtime.Serialization;
 using System.ServiceModel;
 using System.Text;
 using System.Web.Services.Protocols;
+using System.Xml.Serialization;
 using WebServiceBancos.CServidorSoapBCS;
 
 namespace WebServiceBancos
 {
     // NOTA: puede usar el comando "Rename" del menú "Refactorizar" para cambiar el nombre de interfaz "IService1" en el código y en el archivo de configuración a la vez.
-    [ServiceContract(Name = "ServiceBcscToB2BSync")]
+    [ServiceContract(Name = "ServiceBcscToB2BSync", Namespace = "http://com.bcsc.services.b2b")]
+    [XmlSerializerFormat]  // ¡Esto es clave para que respete la estructura XML!
     public interface IServidorSoapBCS_
     {
         [OperationContract]
-        [FaultContract(typeof(faultServiceB2BException), Name = "errorTransactionXML")]
-        responseMsgB2B InvokeSync(requestMsgB2B request);
-        // TODO: agregue aquí sus operaciones de servicio
+        [FaultContract(typeof(errorTransactionXML), Name = "errorTransactionXML")]
+        responseMsgB2B invokeSync(requestMsgB2B request);
+
     }
 
 
@@ -25,21 +27,53 @@ namespace WebServiceBancos
     [MessageContract(IsWrapped = false)]
     public class requestMsgB2B
     {
-        [MessageBodyMember(Namespace = "")]
-        public string transactionXMLprueba;
+
+        [MessageBodyMember(Name = "payload")]
+        [XmlElement(ElementName = "transactionXML", IsNullable = false)]
+        public transactionXML transactionXML { get; set; }
+
+        public void Validate()
+        {
+            if (transactionXML == null)
+            {
+                faultServiceB2BException theFault = new faultServiceB2BException
+                {
+                    error = new errorTransactionXML
+                    {
+                        errorCode = 1,
+                        errorType = "GEN",
+                        errorMessage = "transactionXML requerido",
+                        errorDetail = "requestMsgB2B: transactionXML"
+                    }
+                };
+
+                throw new FaultException<faultServiceB2BException>(theFault, new FaultReason(theFault.error.errorMessage));
+            }
+        }
+
     }
+
     [MessageContract(IsWrapped = false)]
     public class responseMsgB2B
     {
-        [MessageBodyMember(Namespace = "")]
-        public ResponseMsgB2BXML transactionXML;
+        [MessageBodyMember(Name = "payload")]
+        [XmlElement(ElementName = "transactionXML")]
+        public transactionXML transactionXML;
     }
 
     [MessageContract(IsWrapped = false)]
     public class faultServiceB2BException
     {
-        [MessageBodyMember(Namespace = "")]
-        public ErrorTransactionXML error { get; set; }
+        [MessageBodyMember(Name = "error")]
+        [XmlElement(ElementName = "errorTransactionXML")]
+        public errorTransactionXML error { get; set; }
     }
+
+    //[DataContract(Name = "faultServiceB2BException")]
+    //public class faultServiceB2BException
+    //{
+    //    [DataMember(Name = "error", Order = 1)]
+    //    public errorTransactionXML error { get; set; }
+    //}
 
 }

@@ -362,6 +362,11 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
+# ----
+obj/
+bin/
+
+
 # Web.config
 /WebServiceBancos/Web.Release.config
 /WebServiceBancos/Web.Debug.config

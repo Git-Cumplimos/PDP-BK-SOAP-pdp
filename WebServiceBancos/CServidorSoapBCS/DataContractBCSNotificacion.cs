@@ -80,7 +80,7 @@ namespace WebServiceBancos.CServidorSoapBCS
         [DataMember(IsRequired = true)] public DataContractNotificacionRecaudoBCSResponse notificationOfCollectionResponse;
     }
 
-    [DataContract(Namespace = "")]
+    [DataContract(Namespace = "notificationOfCollectionResponse")]
     public class DataContractNotificacionRecaudoBCSResponse
     {
         private string transactionDate_ = "";

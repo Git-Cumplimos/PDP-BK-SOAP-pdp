@@ -3,39 +3,43 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Web;
+using System.Xml.Serialization;
 
 namespace WebServiceBancos.CServidorSoapBCS
 {
-    [DataContract(Namespace = "")]
-    public class TransactionXML
+    [DataContract]
+    [XmlRoot(ElementName = "transactionXML")]
+    public class transactionXML
     {
         [DataMember(IsRequired = true, Order = 1)]
+        //[XmlElement(ElementName = "parametersXML", IsNullable = false)]
         public string parametersXML { get; set; }
 
         [DataMember(IsRequired = true, Order = 2)]
+        //[XmlElement(ElementName = "contentXML", IsNullable = false)]
         public string contentXML { get; set; }
     }
 
-    [DataContract(Namespace = "")]
+    [DataContract]
     public class ResponseMsgB2BXML
     {
         [DataMember]
-        public TransactionXML payload { get; set; }
+        public transactionXML transactionXML; //DUDA
     }
 
-    [DataContract(Namespace = "")]
-    public class ErrorTransactionXML
+    [DataContract(Namespace = "http://com.bcsc.services.b2b")]
+    public class errorTransactionXML
     {
         [DataMember]
-        public int ErrorCode { get; set; }
+        public int errorCode { get; set; }
 
         [DataMember]
-        public string ErrorType { get; set; }
+        public string errorType { get; set; }
 
         [DataMember]
-        public string ErrorMessage { get; set; }
+        public string errorMessage { get; set; }
 
         [DataMember]
-        public string ErrorDetail { get; set; }
+        public string errorDetail { get; set; }
     }
 }
