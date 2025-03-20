@@ -547,7 +547,7 @@ namespace WebServiceBancos
                     else
                     {
                         Out_exitosa.responseCode = "OK";
-                        Out_exitosa.responseDescription = "Operación Exitosa";
+                        Out_exitosa.responseDescription = "Operacion Exitosa";
                         Out_exitosa.totalValue = totalValue;
                         // Serializar el objeto a XML
                         string xmlStringExitosa = SerializeObjectToXmlString(Out_exitosa, typeof(DataContractConsultaRecaudoBCSResponseExitosa));
@@ -598,9 +598,10 @@ namespace WebServiceBancos
             XElement parameters = XElement.Parse(input.parametersXML);
 
             DataContractNotificacionRecaudoBCSResponse Out = new DataContractNotificacionRecaudoBCSResponse();
+            Out.responseError = new DataContractNotificacionRecaudoBCSResponseError();
             Out.transactionDate = content.Element("paymentDate")?.Value;
             Out.transactionCode = content.Element("transactionCode")?.Value;
-
+            
             ConstantesBCS constantes_bcs = new ConstantesBCS();
             string error_name = "";
             string error_user = "";
@@ -1251,6 +1252,7 @@ namespace WebServiceBancos
             XElement parameters = XElement.Parse(input.parametersXML);
 
             DataContractNotificacionRecaudoBCSResponse Out = new DataContractNotificacionRecaudoBCSResponse();
+            Out.responseError = new DataContractNotificacionRecaudoBCSResponseError();
             Out.transactionDate= content.Element("paymentDate")?.Value;
             Out.transactionCode = content.Element("transactionCode")?.Value;
 

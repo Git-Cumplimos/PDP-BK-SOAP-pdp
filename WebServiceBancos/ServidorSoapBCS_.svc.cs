@@ -1,33 +1,17 @@
-﻿using Npgsql;
+﻿using Amazon.Runtime.Internal;
+using Npgsql;
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
-using System.Linq;
-using System.Runtime.Serialization;
-using System.ServiceModel;
-using System.Text;
 using System.Configuration;
-using System.Text.Json;
-using Amazon.Runtime.Internal.Transform;
-using System.Data.SqlClient;
-using System.ServiceModel.Description;
-using System.Collections.ObjectModel;
-using System.ServiceModel.Channels;
-using Amazon.Runtime.Internal;
-using System.IO;
+using System.Globalization;
+using System.ServiceModel;
+using System.Text.RegularExpressions;
 using System.Xml;
-using System.Web.UI.WebControls;
 using System.Xml.Linq;
-
+using WebServiceBancos.ConexionBD;
 using WebServiceBancos.CServidorSoapBCS;
 using WebServiceBancos.Logs;
-using WebServiceBancos.ConexionBD;
 using WebServiceBancos.templates_lib;
-using System.Globalization;
-using System.Web.Services.Protocols;
-using System.Web.Services;
-using System.Runtime.Remoting.Metadata.W3cXsd2001;
-using System.Drawing.Imaging;
 
 namespace WebServiceBancos
 {
@@ -59,8 +43,17 @@ namespace WebServiceBancos
         [OperationBehavior]
         public responseMsgB2B invokeSync(requestMsgB2B input)
         {
+            try
+            {
+                input.Validate();
+            }
+            catch (FaultException<faultServiceB2BException> ex)
+            {
+                throw;
+            }
+
             responseMsgB2B output = new responseMsgB2B();
-            output.transactionXML = new transactionXML();
+             output.transactionXML = new transactionXML();
 
             faultServiceB2BException theFault = new faultServiceB2BException();
             theFault.error = new errorTransactionXML();
@@ -313,6 +306,7 @@ namespace WebServiceBancos
                 else if (content.Name.LocalName == "notificationOfCollectionRequest")
                 {
                     DataContractNotificacionRecaudoBCSResponse Out = new DataContractNotificacionRecaudoBCSResponse();
+                    Out.responseError = new DataContractNotificacionRecaudoBCSResponseError();
                     Out.transactionDate = content.Element("paymentDate")?.Value;
                     Out.transactionCode = content.Element("transactionCode")?.Value;
 
@@ -458,7 +452,6 @@ namespace WebServiceBancos
                     XmlNodeList responseCodeNodes = xmlDoc_.GetElementsByTagName("responseCode");
                     XmlNode responseCodeNode = responseCodeNodes[0];
                     string responseCode = responseCodeNode?.InnerText;
-                    Console.WriteLine(responseCode);   
 
                     if (responseCode != "OK")
                     { 
@@ -551,7 +544,7 @@ namespace WebServiceBancos
                     theFault.error.errorCode = 1;
                     theFault.error.errorType = "GEN";
                     theFault.error.errorMessage = "CollectionRequest no esperado.";
-                    theFault.error.errorDetail = "contentXML: consultOfCollectionRequest ó notificationOfCollectionRequest";
+                    theFault.error.errorDetail = "contentXML: consultOfCollectionRequest o notificationOfCollectionRequest";
                     throw new FaultException<faultServiceB2BException>(theFault, new FaultReason(theFault.error.errorMessage));
                 }                
             }
@@ -564,6 +557,9 @@ namespace WebServiceBancos
                 throw new FaultException<faultServiceB2BException>(theFault, new FaultReason(theFault.error.errorMessage));
             }
         }
+
+   
+
     }
 
 }
