@@ -47,7 +47,7 @@ namespace WebServiceBancos
             {
                 input.Validate();
             }
-            catch (FaultException<faultServiceB2BException> ex)
+            catch (FaultException<faultServiceB2BException>)
             {
                 throw;
             }

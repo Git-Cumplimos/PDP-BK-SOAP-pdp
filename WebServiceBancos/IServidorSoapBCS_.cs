@@ -17,7 +17,7 @@ namespace WebServiceBancos
     public interface IServidorSoapBCS_
     {
         [OperationContract]
-        [FaultContract(typeof(errorTransactionXML), Name = "errorTransactionXML", Namespace = "http://com.bcsc.services.b2b")]
+        [FaultContract(typeof(errorTransactionXML), Name = "errorTransactionXML")]
         responseMsgB2B invokeSync(requestMsgB2B request);
 
     }
